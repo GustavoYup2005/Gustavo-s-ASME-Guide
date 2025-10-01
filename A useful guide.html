@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASME eFest Competition Dashboard - Richland 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Focus -->
+    <!-- Application Structure Plan: A dashboard-style SPA with a tabbed navigation for switching between competitions (IAM3D, SDC, etc.). The core feature is an interactive timeline chart that dynamically updates for the selected competition, providing a clear visual roadmap of project phases and deadlines. This tabbed dashboard structure was chosen because it allows for easy comparison and focused exploration of different project streams without overwhelming the user, directly supporting the goal of making a complex schedule easily consumable. -->
+    <!-- Visualization & Content Choices: Report Info: Competition phases and deadlines. -> Goal: Visualize project schedule. -> Viz Method: Interactive Gantt-style timeline chart. -> Interaction: Chart re-renders on tab click. -> Justification: A visual timeline is far more intuitive for project planning than a static table. -> Library: Chart.js (Canvas). | Report Info: Task details and research points. -> Goal: Present detailed steps clearly. -> Presentation Method: Styled content cards. -> Interaction: Content updates on tab click. -> Justification: Cards break down complex information into digestible, organized chunks. -> Library: HTML/Tailwind. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8f7f4;
+            color: #4a4a4a;
+        }
+        .nav-button {
+            transition: all 0.3s ease;
+        }
+        .nav-button.active {
+            background-color: #8c7a6b;
+            color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .content-card {
+            background-color: #ffffff;
+            border: 1px solid #e5e7eb;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (max-width: 768px) {
+            .chart-container {
+                height: 450px;
+                max-height: 500px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="min-h-screen p-4 sm:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto">
+            
+            <header class="text-center mb-8">
+                <h1 class="text-3xl sm:text-4xl font-bold text-[#4a3f35]">ASME eFest Competition Kickoff Guide</h1>
+                <p class="text-lg text-gray-600 mt-2">Richland College - April 2026 Competition Dashboard</p>
+                <p class="mt-4 max-w-3xl mx-auto text-gray-500">
+                    Welcome teams! This dashboard is your interactive guide to the eFest competitions. Use the buttons below to select your competition and view the project timeline, key tasks, and critical deadlines to get started. Use the **AI Focus** button on any phase for immediate guidance!
+                </p>
+            </header>
+
+            <nav class="flex flex-wrap justify-center gap-2 sm:gap-4 mb-8">
+                <button id="nav-iam3d" class="nav-button active font-medium py-2 px-4 rounded-lg shadow-sm bg-white hover:bg-gray-100 border border-gray-200">IAM3D</button>
+                <button id="nav-sdc" class="nav-button font-medium py-2 px-4 rounded-lg shadow-sm bg-white hover:bg-gray-100 border border-gray-200">SDC</button>
+                <button id="nav-oldguard" class="nav-button font-medium py-2 px-4 rounded-lg shadow-sm bg-white hover:bg-gray-100 border border-gray-200">Old Guard</button>
+                <button id="nav-elevator" class="nav-button font-medium py-2 px-4 rounded-lg shadow-sm bg-white hover:bg-gray-100 border border-gray-200">Elevator Pitch</button>
+            </nav>
+
+            <main id="main-content">
+                <section id="competition-details" class="mb-8">
+                    <h2 id="competition-title" class="text-2xl font-bold text-center text-[#6b5d51] mb-2"></h2>
+                    <p id="competition-description" class="text-center text-gray-600 max-w-2xl mx-auto mb-6"></p>
+                    <div id="phase-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    </div>
+                </section>
+
+                <section id="competition-timeline" class="bg-white p-4 sm:p-6 rounded-2xl shadow-lg border border-gray-200">
+                    <h3 class="text-xl font-bold text-center text-[#6b5d51] mb-4">Project Phase Timeline</h3>
+                    <div class="chart-container">
+                        <canvas id="timelineChart"></canvas>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- AI Project Assistant & Loading Spinner UI -->
+    <div id="loading-spinner" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="flex flex-col items-center p-6 bg-white rounded-xl shadow-lg">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[#8c7a6b] mb-3"></div>
+            <p class="text-[#4a3f35] font-medium">Generating insights...</p>
+        </div>
+    </div>
+
+    <div id="ai-output-area" class="fixed bottom-4 right-4 max-w-xs md:max-w-sm bg-white p-4 rounded-xl shadow-2xl border-t-4 border-[#8c7a6b] hidden z-40 transform translate-y-full transition-all duration-300">
+        <h4 class="font-bold text-[#4a3f35] mb-2 flex justify-between items-center">
+            AI Project Assistant 
+            <button onclick="closeAiOutput()" class="text-gray-400 hover:text-gray-600 text-xl font-light leading-none">&times;</button>
+        </h4>
+        <div id="ai-response-content" class="text-sm text-gray-700 max-h-60 overflow-y-auto"></div>
+    </div>
+    <!-- END AI UI -->
+
+    <script>
+        const competitionData = {
+            iam3d: {
+                title: "IAM3D (Innovative Additive Manufacturing 3D Challenge)",
+                description: "A team-based challenge focused on solving a specific engineering problem using additive manufacturing (3D printing).",
+                type: 'Design',
+                phases: [
+                    { phase: 'P1: Initial Setup', tasks: '1. Assign team roles (Lead Designer, Analyst, etc.). 2. Deep dive into the IAM3D 2026 rules and constraints.', research: 'Understand the official ASME problem statement. Identify key judging metrics: efficiency, innovation, cost.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P2: Concept & Research', tasks: '1. Brainstorm at least 5 distinct design concepts. 2. Research suitable 3D printing materials (PLA, ABS, Nylon, Composites).', research: 'Study material properties (yield strength, etc.). Analyze potential failure modes for proposed designs.', start: '2025-10-11', end: '2025-10-31' },
+                    { phase: 'P3: Preliminary Design', tasks: '1. Develop working CAD models of top 2 concepts (SolidWorks/Fusion 360). 2. Use FEA to simulate loads and failure points.', research: 'Learn Topology Optimization to reduce weight. Study Design for Additive Manufacturing (DFAM) best practices.', start: '2025-11-01', end: '2025-11-30' },
+                    { phase: 'P4: Final Submission Prep', tasks: '1. Begin writing the technical report, capturing all design decisions and simulation results.', research: 'Review past successful IAM3D reports for structure, clarity, and professionalism.', start: '2025-12-01', end: '2025-12-20' }
+                ]
+            },
+            sdc: {
+                title: "SDC (Student Design Competition)",
+                description: "A challenge to design and build a physical device to complete a task, ideal for a small team with a focus on simplicity and reliability.",
+                type: 'Design',
+                phases: [
+                    { phase: 'P1: Rules & Strategy', tasks: '1. Thoroughly read the SDC 2026 Challenge rules. 2. Analyze the scoring to find the easiest, most repeatable way to score points.', research: 'Research simple, reliable mechanisms (4-bar linkages, etc.). Identify readily available, inexpensive materials.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P2: Concept & CAD', tasks: '1. Sketch a simple, robust mechanical concept. 2. Create a basic CAD model to verify dimensions and feasibility.', research: 'Analyze trade-offs between speed, strength, and complexity. Focus on part reduction to maximize reliability.', start: '2025-10-11', end: '2025-11-15' },
+                    { phase: 'P3: Prototyping Kickoff', tasks: '1. Submit a detailed parts list and budget. 2. Start fabricating the most critical mechanical sub-assembly.', research: 'Use 3D printing for custom parts and machine shop for structure. Plan out simple electronics and wiring diagrams.', start: '2025-11-16', end: '2025-11-30' }
+                ]
+            },
+            oldguard: {
+                title: "Old Guard Oral Presentation",
+                description: "A presentation-based contest requiring strong technical communication skills to describe a significant engineering project.",
+                type: 'Presentation',
+                phases: [
+                    { phase: 'P1: Topic Selection', tasks: '1. Select a substantial technical project (e.g., Capstone). 2. Meet with your Faculty Advisor to confirm scope and depth.', research: 'Study successful technical presentation formats. Ensure the project has enough technical depth for a 15-minute talk.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P2: Content & Draft', tasks: '1. Write the full 15-minute speech/script. 2. Create a concise, visual slide outline (max 15 slides).', research: 'Research effective use of visuals and audience engagement. Schedule a session with the Writing Center to review script clarity.', start: '2025-10-11', end: '2025-11-30' }
+                ]
+            },
+            elevator: {
+                title: "Elevator Pitch Competition",
+                description: "A short, compelling pitch to sell an engineering idea. This contest tests your ability to be concise, clear, and persuasive.",
+                type: 'Presentation',
+                phases: [
+                    { phase: 'P1: Idea & Hook', tasks: '1. Choose one compelling engineering idea or project. 2. Craft a single, punchy opening sentence to grab attention.', research: 'Research the structure of successful startup pitches (Problem, Solution, Market, Ask). Focus on communicating core value in <60 seconds.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P2: Script & Practice', tasks: '1. Write and refine the full script (must be delivered from memory). 2. Record yourself multiple times to perfect timing.', research: 'Practice voice projection, body language, and maintaining eye contact for a confident delivery.', start: '2025-10-11', end: '2025-10-31' }
+                ]
+            }
+        };
+
+        let currentCompetition = 'iam3d';
+        let timelineChart = null;
+
+        const competitionTitleEl = document.getElementById('competition-title');
+        const competitionDescriptionEl = document.getElementById('competition-description');
+        const phaseCardsEl = document.getElementById('phase-cards');
+        const chartCanvas = document.getElementById('timelineChart').getContext('2d');
+        const loadingEl = document.getElementById('loading-spinner');
+        const aiOutputEl = document.getElementById('ai-output-area');
+        const aiResponseContentEl = document.getElementById('ai-response-content');
+        
+        const navButtons = {
+            iam3d: document.getElementById('nav-iam3d'),
+            sdc: document.getElementById('nav-sdc'),
+            oldguard: document.getElementById('nav-oldguard'),
+            elevator: document.getElementById('nav-elevator')
+        };
+        
+        const apiKey = ""; 
+        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+        function closeAiOutput() {
+            aiOutputEl.classList.add('translate-y-full');
+            aiOutputEl.classList.add('hidden');
+        }
+
+        async function fetchWithBackoff(url, options, maxRetries = 5, delay = 1000) {
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.status !== 429) {
+                        return response;
+                    }
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                }
+                await new Promise(resolve => setTimeout(resolve, delay * Math.pow(2, i)));
+            }
+        }
+
+        async function generateAiContent(phaseKey, competitionKey) {
+            loadingEl.classList.remove('hidden');
+            aiOutputEl.classList.add('hidden'); 
+            aiResponseContentEl.innerHTML = '';
+            
+            const comp = competitionData[competitionKey];
+            const phaseData = comp.phases.find(p => p.phase === phaseKey);
+            const isPresentation = comp.type === 'Presentation';
+
+            let systemPrompt = '';
+            let userQuery = '';
+            
+            if (isPresentation) {
+                systemPrompt = `You are a professional communications coach and engineering mentor. Your task is to help a student begin preparing for a pitch or presentation competition. Provide a single, compelling opening sentence and a concise 3-point thematic outline based on their current focus.`;
+                userQuery = `The competition is the ${comp.title}. The current phase is '${phaseData.phase}' focused on: ${phaseData.tasks}. Key research is: ${phaseData.research}. Generate a powerful opening sentence and a simple 3-point outline for their presentation or pitch. Format the output clearly.`;
+            } else {
+                systemPrompt = `You are an expert project manager and mechanical engineering lead. Your task is to break down the provided project phase into 4 clear, actionable, and immediate next steps for a student team. The steps must be specific, hands-on, and focused on moving the team toward the next stage of design or fabrication. Do not use filler content.`;
+                userQuery = `The project is the ${comp.title}. The current phase is '${phaseData.phase}'. The tasks are: ${phaseData.tasks}. The key focus is: ${phaseData.research}. Provide 4 actionable next steps.`;
+            }
+
+            const payload = {
+                contents: [{ parts: [{ text: userQuery }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+            };
+
+            try {
+                const response = await fetchWithBackoff(geminiApiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API returned status ${response.status}`);
+                }
+
+                const result = await response.json();
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Error: Could not generate content.";
+                
+                aiResponseContentEl.innerHTML = `
+                    <h5 class="font-bold text-sm mb-1">${isPresentation ? 'Pitch/Presentation Focus for' : 'Actionable Next Steps for'} ${phaseKey}:</h5>
+                    <p class="whitespace-pre-wrap">${text}</p>
+                `;
+                aiOutputEl.classList.remove('hidden', 'translate-y-full');
+
+            } catch (error) {
+                aiResponseContentEl.innerHTML = `<p class="text-red-600">Failed to connect to AI assistant. Please try again. (${error.message})</p>`;
+                aiOutputEl.classList.remove('hidden', 'translate-y-full');
+            } finally {
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+
+        function updateView() {
+            const data = competitionData[currentCompetition];
+
+            competitionTitleEl.textContent = data.title;
+            competitionDescriptionEl.textContent = data.description;
+            
+            phaseCardsEl.innerHTML = '';
+            data.phases.forEach(phase => {
+                const card = document.createElement('div');
+                card.className = 'content-card p-4 rounded-xl shadow-md';
+                card.innerHTML = `
+                    <h4 class="font-bold text-lg text-[#8c7a6b]">${phase.phase}</h4>
+                    <p class="text-sm font-semibold text-gray-500 mb-2">${new Date(phase.start).toLocaleDateString()} - ${new Date(phase.end).toLocaleDateString()}</p>
+                    <div class="mt-2">
+                        <p class="font-semibold text-gray-700">Tasks:</p>
+                        <p class="text-sm text-gray-600">${phase.tasks}</p>
+                    </div>
+                    <div class="mt-3">
+                        <p class="font-semibold text-gray-700">Key Focus:</p>
+                        <p class="text-sm text-gray-600">${phase.research}</p>
+                    </div>
+                    <button class="mt-4 w-full bg-[#4a3f35] text-white py-2 rounded-lg text-sm font-semibold hover:bg-[#6b5d51] transition duration-200"
+                            data-phase-key="${phase.phase}"
+                            onclick="generateAiContent('${phase.phase.replace(/'/g, "\\'")}', '${currentCompetition}')">
+                        Get AI Focus ✨
+                    </button>
+                `;
+                phaseCardsEl.appendChild(card);
+            });
+            
+            updateNavButtons();
+            updateChart();
+            closeAiOutput();
+        }
+
+        function updateNavButtons() {
+            Object.values(navButtons).forEach(button => button.classList.remove('active'));
+            navButtons[currentCompetition].classList.add('active');
+        }
+
+        function updateChart() {
+            if (timelineChart) {
+                timelineChart.destroy();
+            }
+            
+            const data = competitionData[currentCompetition];
+            const chartData = {
+                labels: data.phases.map(p => p.phase),
+                datasets: [{
+                    label: 'Phase Duration',
+                    data: data.phases.map(p => [p.start, p.end]),
+                    backgroundColor: 'rgba(140, 122, 107, 0.6)',
+                    borderColor: 'rgba(140, 122, 107, 1)',
+                    borderWidth: 1,
+                    borderRadius: 4,
+                    borderSkipped: false,
+                }]
+            };
+
+            timelineChart = new Chart(chartCanvas, {
+                type: 'bar',
+                data: chartData,
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'week',
+                                tooltipFormat: 'MMM dd, yyyy'
+                            },
+                            min: '2025-10-01',
+                            max: '2025-12-31',
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                           ticks: {
+                                autoSkip: false
+                           }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const start = new Date(context.raw[0]).toLocaleDateString();
+                                    const end = new Date(context.raw[1]).toLocaleDateString();
+                                    return `${context.dataset.label}: ${start} to ${end}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        Object.keys(navButtons).forEach(key => {
+            navButtons[key].addEventListener('click', () => {
+                currentCompetition = key;
+                updateView();
+            });
+        });
+
+        window.onload = updateView;
+    </script>
+</body>
+</html>
