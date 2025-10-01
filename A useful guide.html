@@ -8,56 +8,49 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Chosen Palette: Technical Gray & Gold (Supports Light/Dark Mode) -->
-    <!-- Application Structure Plan: A dashboard-style SPA with a tabbed navigation for switching between competitions (IAM3D, SDC, etc.). The core feature is an interactive timeline chart that dynamically updates for the selected competition, providing a clear visual roadmap of project phases and deadlines. This tabbed dashboard structure was chosen because it allows for easy comparison and focused exploration of different project streams without overwhelming the user, directly supporting the goal of making a complex schedule easily consumable. -->
-    <!-- Visualization & Content Choices: Report Info: Competition phases and deadlines. -> Goal: Visualize project schedule. -> Viz Method: Interactive Gantt-style timeline chart. -> Interaction: Chart re-renders on tab click. -> Justification: A visual timeline is far more intuitive for project planning than a static table. -> Library: Chart.js (Canvas). | Report Info: Task details and research points. -> Goal: Present detailed steps clearly. -> Presentation Method: Styled content cards. -> Interaction: Content updates on tab click. -> Justification: Cards break down complex information into digestible, organized chunks. -> Library: HTML/Tailwind. -->
+    <!-- Chosen Palette: NAU Blue (#0B2241) and Gold/Yellow (#FFC72C) -->
+    <!-- Application Structure Plan: A dark-themed dashboard using a background image overlay for a professional, branded look. The structure remains a tabbed navigation system for switching between competitions (IAM3D, SDC, HPVC, XRC, etc.). The interactive timeline chart provides a clear visual roadmap for each project stream. This structure prioritizes high contrast and focused, thematic exploration. -->
+    <!-- Visualization & Content Choices: Report Info: Competition phases and deadlines. -> Goal: Visualize project schedule. -> Viz Method: Interactive Gantt-style timeline chart. -> Interaction: Chart re-renders on tab click. -> Justification: A visual timeline is the clearest way to present project scheduling. -> Library: Chart.js (Canvas). | Report Info: Task details and research points. -> Goal: Present detailed steps clearly. -> Presentation Method: High-contrast content cards (Yellow shadow accent). -> Interaction: Content updates on tab click. -> Justification: Cards break down complex information into digestible, organized chunks. -> Library: HTML/Tailwind. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            transition: background-color 0.3s, color 0.3s;
+            background-color: #0B2241; /* NAU Blue */
+            color: #F3F4F6; /* Soft White text */
+            position: relative;
         }
-        /* LIGHT MODE */
-        .theme-light {
-            background-color: #f4f6f8;
-            color: #1f2937; /* Dark Gray text */
+        /* Fixed Background Image with Overlay for Fade Effect and Scroll Illusion (Parallax) */
+        .background-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://placehold.co/1920x1080/0B2241/88929e?text=NAU+Campus+Image'); 
+            background-size: cover;
+            background-position: center center;
+            opacity: 0.15; /* Subtly faded */
+            z-index: -1;
+            transform: translateZ(0); /* Enable hardware acceleration */
         }
-        .theme-light .content-card, .theme-light #competition-timeline {
-            background-color: #ffffff;
-            border-color: #e5e7eb;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        .content-container {
+            position: relative;
+            z-index: 10;
         }
-        .theme-light .nav-button.active {
-            background-color: #0b2241; /* Dark Blue */
-            color: #ffffff;
-        }
-        .theme-light .nav-button {
-            border-color: #d1d5db;
-        }
-        
-        /* DARK MODE */
-        .theme-dark {
-            background-color: #111827; /* Deep Charcoal */
-            color: #f3f4f6; /* Light Gray text */
-        }
-        .theme-dark .content-card, .theme-dark #competition-timeline {
-            background-color: #1f2937; /* Darker card background */
-            border-color: #374151;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-        }
-        .theme-dark .nav-button.active {
-            background-color: #f59e0b; /* Amber/Gold */
-            color: #1f2937;
-        }
-        .theme-dark .nav-button {
-            background-color: #374151;
-            color: #d1d5db;
-            border-color: #4b5563;
-        }
-
         .nav-button {
             transition: all 0.3s ease;
-            font-weight: 600;
+            font-weight: 700;
+            border: 2px solid #374151; 
+        }
+        .nav-button.active {
+            background-color: #FFC72C; /* Gold Accent */
+            color: #0B2241; 
+            box-shadow: 0 0 15px rgba(255, 199, 44, 0.6);
+        }
+        .content-card, #competition-timeline {
+            background-color: rgba(11, 34, 65, 0.85); /* Slightly transparent dark blue */
+            border: 1px solid #374151;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
         }
         .chart-container {
             position: relative;
@@ -76,46 +69,41 @@
         }
     </style>
 </head>
-<body class="antialiased theme-light">
-    <div class="min-h-screen p-4 sm:p-6 lg:p-8">
+<body class="antialiased">
+    <div class="background-overlay"></div>
+    <div class="min-h-screen p-4 sm:p-6 lg:p-8 content-container">
         <div class="max-w-7xl mx-auto">
             
             <header class="text-center mb-8">
-                <div class="flex justify-between items-center mb-4">
-                    <div class="w-1/3"></div> 
-                    <div class="w-1/3 text-center">
-                        <h1 class="text-3xl sm:text-4xl font-extrabold text-[#0b2241] dark:text-[#f59e0b]">ASME eFest Kickoff Guide</h1>
-                        <p class="text-lg text-gray-600 dark:text-gray-400 mt-1 font-medium">Richland College - April 2026 Competition Dashboard</p>
-                    </div>
-                    <div class="w-1/3 flex justify-end">
-                        <button id="theme-toggle" class="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-yellow-400 shadow-md transition duration-200" title="Toggle Dark/Light Mode">
-                            <span id="light-icon" class="text-xl">☀️</span>
-                            <span id="dark-icon" class="text-xl hidden">🌙</span>
-                        </button>
-                    </div>
+                <div class="flex justify-center items-center mb-4">
+                    <h1 class="text-4xl sm:text-5xl font-extrabold text-[#FFC72C]">ASME eFest Kickoff Guide</h1>
                 </div>
-                <p class="mt-4 max-w-4xl mx-auto text-gray-700 dark:text-gray-300">
-                    Welcome teams! This dashboard is your interactive guide to the eFest competitions. Use the buttons below to select your competition and view the project timeline, key tasks, and critical deadlines to get started. Use the **AI Focus** button on any phase for immediate, expert guidance!
+                <p class="text-xl text-gray-300 mt-1 font-medium">Richland College - April 2026 Competition Dashboard</p>
+                
+                <p class="mt-4 max-w-4xl mx-auto text-gray-200">
+                    Welcome teams! This dashboard is your interactive guide to the eFest competitions. Use the buttons below to select your competition and view the project timeline, key tasks, and critical deadlines. Use the **AI Focus** button on any phase for immediate, expert guidance!
                 </p>
             </header>
 
             <nav class="flex flex-wrap justify-center gap-3 sm:gap-6 mb-8">
-                <button id="nav-iam3d" class="nav-button active font-medium py-2 px-6 rounded-xl shadow-lg bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 text-lg">IAM3D</button>
-                <button id="nav-sdc" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 text-lg">SDC</button>
-                <button id="nav-oldguard" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 text-lg">Old Guard</button>
-                <button id="nav-elevator" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-white hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-600 text-lg">Elevator Pitch</button>
+                <button id="nav-iam3d" class="nav-button active font-medium py-2 px-6 rounded-xl shadow-lg bg-[#0b2241] text-white hover:bg-gray-800 text-lg">IAM3D</button>
+                <button id="nav-sdc" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-[#0b2241] text-white hover:bg-gray-800 text-lg">SDC</button>
+                <button id="nav-hpvc" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-[#0b2241] text-white hover:bg-gray-800 text-lg">HPVC</button>
+                <button id="nav-xrc" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-[#0b2241] text-white hover:bg-gray-800 text-lg">XRC</button>
+                <button id="nav-oldguard" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-[#0b2241] text-white hover:bg-gray-800 text-lg">Old Guard</button>
+                <button id="nav-elevator" class="nav-button font-medium py-2 px-6 rounded-xl shadow-lg bg-[#0b2241] text-white hover:bg-gray-800 text-lg">Elevator Pitch</button>
             </nav>
 
             <main id="main-content">
                 <section id="competition-details" class="mb-8">
-                    <h2 id="competition-title" class="text-3xl font-bold text-center text-[#0b2241] dark:text-[#f59e0b] mb-4"></h2>
-                    <p id="competition-description" class="text-center text-gray-700 dark:text-gray-300 max-w-3xl mx-auto mb-8"></p>
+                    <h2 id="competition-title" class="text-3xl font-bold text-center text-[#FFC72C] mb-4"></h2>
+                    <p id="competition-description" class="text-center text-gray-300 max-w-3xl mx-auto mb-8"></p>
                     <div id="phase-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     </div>
                 </section>
 
                 <section id="competition-timeline" class="content-card p-6 sm:p-8 rounded-2xl shadow-xl">
-                    <h3 class="text-xl font-bold text-center text-[#0b2241] dark:text-[#f59e0b] mb-4 border-b pb-2 border-gray-200 dark:border-gray-700">Project Phase Timeline</h3>
+                    <h3 class="text-xl font-bold text-center text-[#FFC72C] mb-4 border-b pb-2 border-gray-700">Project Phase Timeline</h3>
                     <div class="chart-container">
                         <canvas id="timelineChart"></canvas>
                     </div>
@@ -126,18 +114,18 @@
 
     <!-- AI Project Assistant & Loading Spinner UI -->
     <div id="loading-spinner" class="fixed inset-0 bg-gray-900 bg-opacity-70 flex items-center justify-center hidden z-50">
-        <div class="flex flex-col items-center p-8 bg-white dark:bg-gray-800 rounded-xl shadow-2xl">
-            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#0b2241] dark:border-[#f59e0b] mb-4"></div>
-            <p class="text-[#0b2241] dark:text-gray-100 font-semibold text-lg">Generating expert focus...</p>
+        <div class="flex flex-col items-center p-8 bg-[#0B2241] rounded-xl shadow-2xl border-2 border-[#FFC72C]">
+            <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-[#FFC72C] mb-4"></div>
+            <p class="text-[#F3F4F6] font-semibold text-lg">Generating expert focus...</p>
         </div>
     </div>
 
-    <div id="ai-output-area" class="fixed bottom-4 right-4 max-w-xs md:max-w-sm bg-white dark:bg-gray-800 p-4 rounded-xl shadow-2xl border-t-4 border-[#0b2241] dark:border-[#f59e0b] hidden z-40 transform translate-y-full transition-all duration-500 ease-out">
-        <h4 class="font-bold text-[#0b2241] dark:text-[#f59e0b] mb-2 flex justify-between items-center text-lg">
+    <div id="ai-output-area" class="fixed bottom-4 right-4 max-w-xs md:max-w-sm bg-[#0B2241] p-4 rounded-xl shadow-2xl border-t-4 border-[#FFC72C] hidden z-40 transform translate-y-full transition-all duration-500 ease-out">
+        <h4 class="font-bold text-[#FFC72C] mb-2 flex justify-between items-center text-lg">
             AI Project Assistant 
-            <button onclick="closeAiOutput()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl font-light leading-none">&times;</button>
+            <button onclick="closeAiOutput()" class="text-gray-400 hover:text-gray-200 text-xl font-light leading-none">&times;</button>
         </h4>
-        <div id="ai-response-content" class="text-sm text-gray-700 dark:text-gray-300 max-h-60 overflow-y-auto"></div>
+        <div id="ai-response-content" class="text-sm text-gray-300 max-h-60 overflow-y-auto"></div>
     </div>
     <!-- END AI UI -->
 
@@ -145,48 +133,67 @@
         const competitionData = {
             iam3d: {
                 title: "IAM3D (Innovative Additive Manufacturing 3D Challenge)",
-                description: "A team-based challenge focused on solving a specific engineering problem using additive manufacturing (3D printing).",
+                description: "A large-team challenge focusing on solving a specific engineering problem using Topology Optimization and 3D printing.",
                 type: 'Design',
                 phases: [
-                    { phase: 'P1: Initial Setup', tasks: '1. Assign team roles (Lead Designer, Analyst, etc.). 2. Deep dive into the IAM3D 2026 rules and constraints.', research: 'Understand the official ASME problem statement. Identify key judging metrics: efficiency, innovation, cost.', start: '2025-10-01', end: '2025-10-10' },
-                    { phase: 'P2: Concept & Research', tasks: '1. Brainstorm at least 5 distinct design concepts. 2. Research suitable 3D printing materials (PLA, ABS, Nylon, Composites).', research: 'Study material properties (yield strength, etc.). Analyze potential failure modes for proposed designs.', start: '2025-10-11', end: '2025-10-31' },
-                    { phase: 'P3: Preliminary Design', tasks: '1. Develop working CAD models of top 2 concepts (SolidWorks/Fusion 360). 2. Use FEA to simulate loads and failure points.', research: 'Learn Topology Optimization to reduce weight. Study Design for Additive Manufacturing (DFAM) best practices.', start: '2025-11-01', end: '2025-11-30' },
+                    { phase: 'P1: Initial Setup', tasks: '1. Assign team roles (Designer, Analyst, Materials Specialist). 2. Deep dive into the IAM3D 2026 rules and constraints.', research: 'Understand problem statement and identify key judging metrics: efficiency, innovation, cost.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P2: Concept & Research', tasks: '1. Brainstorm 5 distinct design concepts. 2. Research suitable 3D printing materials (PLA, ABS, Nylon, Composites).', research: 'Study material properties (strength, modulus). Analyze potential failure modes and load requirements.', start: '2025-10-11', end: '2025-10-31' },
+                    { phase: 'P3: Preliminary Design', tasks: '1. Develop working CAD models of top 2 concepts. 2. Use FEA to simulate loads and failure points.', research: 'Master Topology Optimization techniques. Study Design for Additive Manufacturing (DFAM) best practices.', start: '2025-11-01', end: '2025-11-30' },
                     { phase: 'P4: Final Submission Prep', tasks: '1. Begin writing the technical report, capturing all design decisions and simulation results.', research: 'Review past successful IAM3D reports for structure, clarity, and professionalism.', start: '2025-12-01', end: '2025-12-20' }
                 ]
             },
             sdc: {
                 title: "SDC (Student Design Competition)",
-                description: "A challenge to design and build a physical device to complete a task, ideal for a small team with a focus on simplicity and reliability.",
+                description: "A small-team challenge to design and build a physical device to complete a complex task, focusing on simplicity and reliability.",
                 type: 'Design',
                 phases: [
-                    { phase: 'P1: Rules & Strategy', tasks: '1. Thoroughly read the SDC 2026 Challenge rules. 2. Analyze the scoring to find the easiest, most repeatable way to score points.', research: 'Research simple, reliable mechanisms (4-bar linkages, etc.). Identify readily available, inexpensive materials.', start: '2025-10-01', end: '2025-10-10' },
-                    { phase: 'P2: Concept & CAD', tasks: '1. Sketch a simple, robust mechanical concept. 2. Create a basic CAD model to verify dimensions and feasibility.', research: 'Analyze trade-offs between speed, strength, and complexity. Focus on part reduction to maximize reliability.', start: '2025-10-11', end: '2025-11-15' },
-                    { phase: 'P3: Prototyping Kickoff', tasks: '1. Submit a detailed parts list and budget. 2. Start fabricating the most critical mechanical sub-assembly.', research: 'Use 3D printing for custom parts and machine shop for structure. Plan out simple electronics and wiring diagrams.', start: '2025-11-16', end: '2025-11-30' }
+                    { phase: 'P1: Rules & Strategy', tasks: '1. Thoroughly read the SDC 2026 Challenge rules. 2. Analyze the scoring to find the simplest, most repeatable scoring method.', research: 'Research simple, reliable mechanisms (linkages, gear trains). Identify readily available, inexpensive materials.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P2: Concept & CAD', tasks: '1. Sketch a simple, robust mechanical concept. 2. Create a basic CAD model to verify dimensions and feasibility.', research: 'Analyze trade-offs between speed, strength, and complexity. Focus on using the fewest moving parts possible.', start: '2025-10-11', end: '2025-11-15' },
+                    { phase: 'P3: Prototyping Kickoff', tasks: '1. Submit parts list/budget to Treasurer. 2. Start fabricating the most critical mechanical sub-assembly (drive base, actuator).', research: 'Use 3D printing for custom parts and machine shop for structure. Plan simple electronics and controls.', start: '2025-11-16', end: '2025-11-30' }
+                ]
+            },
+            hpvc: {
+                title: "HPVC (Human Powered Vehicle Challenge)",
+                description: "Design and build a high-efficiency vehicle focused on speed, utility, and safety. This requires expertise in aerodynamics and composite materials.",
+                type: 'Design',
+                phases: [
+                    { phase: 'P1: Design Review', tasks: '1. Review past HPVC design documents (if available). 2. Conduct a structural load analysis on the frame/chassis.', research: 'Study frame geometry and material choice (composites, welding). Research safety and braking system requirements.', start: '2025-10-01', end: '2025-10-20' },
+                    { phase: 'P2: Aerodynamics & Fairing', tasks: '1. Finalize fairing CAD and start material lay-up plan. 2. Submit composite material order to Treasurer.', research: 'Study low-drag aerodynamic profiles. Review composite lamination techniques and material curing processes.', start: '2025-10-21', end: '2025-11-20' },
+                    { phase: 'P3: Drive Train & Controls', tasks: '1. Assemble and tune the drive train system (gears, chain). 2. Finalize all steering and control linkages.', research: 'Optimizing gear ratios for speed vs. endurance. Review manufacturing tolerances for critical bearing surfaces.', start: '2025-11-21', end: '2025-12-20' }
+                ]
+            },
+            xrc: {
+                title: "XRC (Robotics Competition)",
+                description: "Design, build, and program a robotic system to complete a defined set of tasks. Focuses on programming, mechatronics, and electrical design.",
+                type: 'Design',
+                phases: [
+                    { phase: 'P1: Requirements & Sensor Suite', tasks: '1. Analyze mission objectives and required robotic functions. 2. Select initial microcontrollers (Arduino/Pi) and sensor types (IR, distance).', research: 'Study kinematics and required degrees of freedom. Research C++/Python libraries for chosen hardware.', start: '2025-10-01', end: '2025-10-15' },
+                    { phase: 'P2: Prototyping & Code Base', tasks: '1. Build a basic mobile chassis and integrate motors. 2. Develop core code logic for movement and obstacle avoidance.', research: 'Learn PID controllers for motor feedback. Review PCB design principles for clean power distribution.', start: '2025-10-16', end: '2025-11-15' },
+                    { phase: 'P3: Task Integration & Testing', tasks: '1. Integrate all specific tools (grippers, actuators) required for mission tasks. 2. Conduct daily stress tests of systems and code stability.', research: 'Focus on error handling in code (e.g., sensor failure). Document maintenance and repair procedures.', start: '2025-11-16', end: '2025-12-20' }
                 ]
             },
             oldguard: {
                 title: "Old Guard Oral Presentation",
-                description: "A presentation-based contest requiring strong technical communication skills to describe a significant engineering project.",
+                description: "A 15-minute presentation-based contest on a significant engineering project, judged on technical depth and communication skills.",
                 type: 'Presentation',
                 phases: [
-                    { phase: 'P1: Topic Selection', tasks: '1. Select a substantial technical project (e.g., Capstone). 2. Meet with your Faculty Advisor to confirm scope and depth.', research: 'Study successful technical presentation formats. Ensure the project has enough technical depth for a 15-minute talk.', start: '2025-10-01', end: '2025-10-10' },
+                    { phase: 'P1: Topic Selection', tasks: '1. Select a substantial technical project (e.g., Capstone). 2. Meet with Faculty Advisor to confirm scope and depth.', research: 'Study successful technical presentation formats. Ensure the project has enough technical depth for a 15-minute talk.', start: '2025-10-01', end: '2025-10-10' },
                     { phase: 'P2: Content & Draft', tasks: '1. Write the full 15-minute speech/script. 2. Create a concise, visual slide outline (max 15 slides).', research: 'Research effective use of visuals and audience engagement. Schedule a session with the Writing Center to review script clarity.', start: '2025-10-11', end: '2025-11-30' }
                 ]
             },
             elevator: {
                 title: "Elevator Pitch Competition",
-                description: "A short, compelling pitch to sell an engineering idea. This contest tests your ability to be concise, clear, and persuasive.",
+                description: "A short, compelling pitch to sell an engineering idea in under 60 seconds. Tests brevity and persuasive communication.",
                 type: 'Presentation',
                 phases: [
                     { phase: 'P1: Idea & Hook', tasks: '1. Choose one compelling engineering idea or project. 2. Craft a single, punchy opening sentence to grab attention.', research: 'Research the structure of successful startup pitches (Problem, Solution, Market, Ask). Focus on communicating core value in <60 seconds.', start: '2025-10-01', end: '2025-10-10' },
-                    { phase: 'P2: Script & Practice', tasks: '1. Write and refine the full script (must be delivered from memory). 2. Record yourself multiple times to perfect timing.', research: 'Practice voice projection, body language, and maintaining eye contact for a confident delivery.', start: '2025-10-11', end: '2025-10-31' }
+                    { phase: 'P2: Script & Practice', tasks: '1. Write and refine the full script (must be delivered from memory). 2. Record yourself multiple times to time the pitch precisely.', research: 'Practice voice projection, body language, and maintaining eye contact for a confident delivery.', start: '2025-10-11', end: '2025-10-31' }
                 ]
             }
         };
 
         let currentCompetition = 'iam3d';
         let timelineChart = null;
-        let darkMode = false;
 
         const competitionTitleEl = document.getElementById('competition-title');
         const competitionDescriptionEl = document.getElementById('competition-description');
@@ -195,39 +202,17 @@
         const loadingEl = document.getElementById('loading-spinner');
         const aiOutputEl = document.getElementById('ai-output-area');
         const aiResponseContentEl = document.getElementById('ai-response-content');
-        const themeToggle = document.getElementById('theme-toggle');
-        const lightIcon = document.getElementById('light-icon');
-        const darkIcon = document.getElementById('dark-icon');
         
         const navButtons = {
             iam3d: document.getElementById('nav-iam3d'),
             sdc: document.getElementById('nav-sdc'),
+            hpvc: document.getElementById('nav-hpvc'),
+            xrc: document.getElementById('nav-xrc'),
             oldguard: document.getElementById('nav-oldguard'),
             elevator: document.getElementById('nav-elevator')
         };
         
         const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent`;
-
-        // THEME TOGGLE FUNCTIONALITY
-        function toggleTheme() {
-            darkMode = !darkMode;
-            document.body.classList.toggle('theme-dark', darkMode);
-            document.body.classList.toggle('theme-light', !darkMode);
-
-            if (darkMode) {
-                document.documentElement.classList.add('dark');
-                lightIcon.classList.add('hidden');
-                darkIcon.classList.remove('hidden');
-            } else {
-                document.documentElement.classList.remove('dark');
-                lightIcon.classList.remove('hidden');
-                darkIcon.classList.add('hidden');
-            }
-            updateChartStyling();
-        }
-
-        themeToggle.addEventListener('click', toggleTheme);
-        // END THEME TOGGLE
 
         function closeAiOutput() {
             aiOutputEl.classList.add('translate-y-full');
@@ -274,7 +259,6 @@
             };
 
             try {
-                // IMPORTANT: The apiKey is omitted here as per Canvas instructions for using the provided API key.
                 const response = await fetchWithBackoff(geminiApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -282,7 +266,6 @@
                 });
                 
                 if (!response.ok) {
-                    // This handles the 403 error specifically
                     const errorDetails = await response.text();
                     throw new Error(`API returned status ${response.status}. Details: ${errorDetails.substring(0, 100)}...`);
                 }
@@ -291,13 +274,13 @@
                 const text = result.candidates?.[0]?.content?.parts?.[0]?.text || "Error: Could not generate content. The model response was empty.";
                 
                 aiResponseContentEl.innerHTML = `
-                    <h5 class="font-bold text-sm mb-1 text-[#0b2241] dark:text-[#f59e0b]">${isPresentation ? 'Pitch/Presentation Focus for' : 'Actionable Next Steps for'} ${phaseKey}:</h5>
+                    <h5 class="font-bold text-sm mb-1 text-[#FFC72C]">${isPresentation ? 'Pitch/Presentation Focus for' : 'Actionable Next Steps for'} ${phaseKey}:</h5>
                     <p class="whitespace-pre-wrap">${text}</p>
                 `;
                 aiOutputEl.classList.remove('hidden', 'translate-y-full');
 
             } catch (error) {
-                aiResponseContentEl.innerHTML = `<p class="text-red-600 dark:text-red-400">Failed to connect to AI assistant. Please try again. (${error.message.substring(0, 100)}...)</p>`;
+                aiResponseContentEl.innerHTML = `<p class="text-red-400">Failed to connect to AI assistant. Please try again. (${error.message.substring(0, 100)}...)</p>`;
                 aiOutputEl.classList.remove('hidden', 'translate-y-full');
             } finally {
                 loadingEl.classList.add('hidden');
@@ -316,17 +299,17 @@
                 const card = document.createElement('div');
                 card.className = 'content-card p-5 rounded-xl shadow-xl';
                 card.innerHTML = `
-                    <h4 class="font-bold text-xl text-[#0b2241] dark:text-[#f59e0b]">${phase.phase}</h4>
-                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-3">${new Date(phase.start).toLocaleDateString()} - ${new Date(phase.end).toLocaleDateString()}</p>
+                    <h4 class="font-bold text-xl text-[#FFC72C]">${phase.phase}</h4>
+                    <p class="text-sm font-semibold text-gray-400 mb-3">${new Date(phase.start).toLocaleDateString()} - ${new Date(phase.end).toLocaleDateString()}</p>
                     <div class="mt-2">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200">Tasks:</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${phase.tasks}</p>
+                        <p class="font-semibold text-gray-100">Tasks:</p>
+                        <p class="text-sm text-gray-300">${phase.tasks}</p>
                     </div>
                     <div class="mt-3">
-                        <p class="font-semibold text-gray-800 dark:text-gray-200">Key Focus:</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">${phase.research}</p>
+                        <p class="font-semibold text-gray-100">Key Focus:</p>
+                        <p class="text-sm text-gray-300">${phase.research}</p>
                     </div>
-                    <button class="mt-4 w-full bg-[#0b2241] dark:bg-[#f59e0b] text-white dark:text-gray-900 py-2 rounded-lg text-sm font-bold hover:bg-[#1a375e] dark:hover:bg-[#ffbe4d] transition duration-200 shadow-md"
+                    <button class="mt-4 w-full bg-[#FFC72C] text-[#0B2241] py-2 rounded-lg text-sm font-bold hover:bg-[#ffbe4d] transition duration-200 shadow-lg"
                             data-phase-key="${phase.phase}"
                             onclick="generateAiContent('${phase.phase.replace(/'/g, "\\'")}', '${currentCompetition}')">
                         Get AI Focus ✨
@@ -343,19 +326,20 @@
         function updateNavButtons() {
             Object.values(navButtons).forEach(button => {
                 button.classList.remove('active');
-                button.classList.remove('bg-[#0b2241]', 'text-white', 'dark:bg-[#f59e0b]', 'dark:text-gray-900');
+                button.classList.remove('bg-[#FFC72C]', 'text-[#0B2241]', 'shadow-[0_0_15px_rgba(255,199,44,0.6)]');
+                button.classList.add('bg-[#0B2241]', 'text-white', 'hover:bg-gray-800');
                 
                 if (button.id.replace('nav-', '') === currentCompetition) {
                     button.classList.add('active');
-                    button.classList.add('bg-[#0b2241]', 'text-white', 'dark:bg-[#f59e0b]', 'dark:text-gray-900');
+                    button.classList.add('bg-[#FFC72C]', 'text-[#0B2241]', 'shadow-[0_0_15px_rgba(255,199,44,0.6)]');
+                    button.classList.remove('bg-[#0B2241]', 'text-white');
                 }
             });
         }
 
         function updateChartStyling() {
-            const isDark = document.body.classList.contains('theme-dark');
-            const textColor = isDark ? '#f3f4f6' : '#1f2937';
-            const gridColor = isDark ? 'rgba(243, 244, 246, 0.2)' : 'rgba(31, 41, 55, 0.2)';
+            const textColor = '#F3F4F6';
+            const gridColor = 'rgba(243, 244, 246, 0.2)';
 
             const chartOptions = {
                 indexAxis: 'y',
@@ -410,6 +394,8 @@
 
             if (timelineChart) {
                 timelineChart.options = chartOptions;
+                timelineChart.data.datasets[0].backgroundColor = 'rgba(255, 199, 44, 0.7)';
+                timelineChart.data.datasets[0].borderColor = 'rgba(255, 199, 44, 1)';
                 timelineChart.update();
             } else {
                 // Initial Chart Creation
@@ -419,8 +405,8 @@
                     datasets: [{
                         label: 'Phase Duration',
                         data: data.phases.map(p => [p.start, p.end]),
-                        backgroundColor: isDark ? 'rgba(245, 158, 11, 0.7)' : 'rgba(11, 34, 65, 0.7)',
-                        borderColor: isDark ? 'rgba(245, 158, 11, 1)' : 'rgba(11, 34, 65, 1)',
+                        backgroundColor: 'rgba(255, 199, 44, 0.7)',
+                        borderColor: 'rgba(255, 199, 44, 1)',
                         borderWidth: 1,
                         borderRadius: 4,
                         borderSkipped: false,
