@@ -212,7 +212,8 @@
             elevator: document.getElementById('nav-elevator')
         };
         
-        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent`;
+        // FIX: Append the ?key= parameter to the URL to ensure the environment injects the API key correctly, fixing the 403 error.
+        const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=`;
 
         function closeAiOutput() {
             aiOutputEl.classList.add('translate-y-full');
@@ -259,6 +260,7 @@
             };
 
             try {
+                // Fetch call now uses the URL with the ?key= suffix
                 const response = await fetchWithBackoff(geminiApiUrl, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
